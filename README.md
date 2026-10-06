@@ -2,7 +2,18 @@
 
 > Which wells sustain field production, when and why did they lose performance (water, pressure, downtime), and how much oil was lost to downtime?
 
-🚧 **Work in progress** (started October 2026).
+🚧 **Work in progress** (started October 2026). Done: data cleaning, SQL KPIs and production analysis. Next: decline curves and the Power BI dashboard.
+
+![Monthly oil production by well](images/01_field_production.png)
+
+## Key findings so far
+| # | Finding | Number |
+|---|---|---|
+| 1 | Two wells carried the field | F-12 + F-14 = **85%** of the oil |
+| 2 | Water arrived early and took over | Water cut passed 10% **13–23 months** after first oil in the original wells; field water cut **above 70%** from 2011 |
+| 3 | Downtime was the largest controllable loss | ~**1.0 million Sm³** of oil estimated (~**10%** of production), worst in 2009 at the field's peak |
+
+Details: [`notebooks/02_analysis.ipynb`](notebooks/02_analysis.ipynb) · [water cut by well](images/02_water_cut.png) · [downtime loss by year](images/03_downtime_loss.png)
 
 ## Business question
 A production data analyst at an operator has to answer three questions every day:
