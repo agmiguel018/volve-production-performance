@@ -1,0 +1,79 @@
+// DAX measures for the Volve Daily Production Report.
+// Create them in a table named "_Measures" (Modeling > New table: _Measures = {BLANK()}),
+// then Modeling > New measure for each block below.
+// Tables: fact_production, fact_downtime, dim_well, dim_date (see dashboard/README.md).
+
+// ---------- Volumes ----------
+Oil Sm3 = SUM ( fact_production[oil_sm3] )
+
+Gas Sm3 = SUM ( fact_production[gas_sm3] )
+
+Water Sm3 = SUM ( fact_production[water_sm3] )
+
+Water Injected Sm3 = SUM ( fact_production[water_injected_sm3] )
+
+Cumulative Oil Sm3 =
+CALCULATE (
+    [Oil Sm3],
+    FILTER ( ALL ( dim_date ), dim_date[Date] <= MAX ( dim_date[Date] ) )
+)
+
+Oil Share % =
+DIVIDE ( [Oil Sm3], CALCULATE ( [Oil Sm3], ALL ( dim_well ) ) )
+
+// ---------- Well health ----------
+Water Cut % = DIVIDE ( [Water Sm3], [Oil Sm3] + [Water Sm3] )
+
+GOR Sm3/Sm3 = DIVIDE ( [Gas Sm3], [Oil Sm3] )
+
+Water-Oil Ratio = DIVIDE ( [Water Sm3], [Oil Sm3] )
+
+Avg Choke % =
+CALCULATE (
+    AVERAGE ( fact_production[choke_pct] ),
+    fact_production[on_stream_hrs] > 0
+)
+
+Avg WHP bar =
+CALCULATE (
+    AVERAGE ( fact_production[whp_bar] ),
+    fact_production[on_stream_hrs] > 0
+)
+
+// ---------- Uptime ----------
+On-stream Hours = SUM ( fact_production[on_stream_hrs] )
+
+Producer Efficiency % =
+CALCULATE (
+    DIVIDE ( SUM ( fact_production[on_stream_hrs] ), SUM ( fact_production[day_hours] ) ),
+    fact_production[role] = "producer"
+)
+
+Oil Rate Sm3/h =
+CALCULATE (
+    DIVIDE ( [Oil Sm3], SUM ( fact_production[on_stream_hrs] ) ),
+    fact_production[role] = "producer"
+)
+
+// ---------- Downtime losses (estimate, see notebooks/02_analysis.ipynb) ----------
+Lost Oil Sm3 = SUM ( fact_downtime[lost_oil_sm3] )
+
+Lost Oil - Full-day Stops Sm3 =
+CALCULATE ( [Lost Oil Sm3], fact_downtime[full_day_stop] = TRUE () )
+
+Lost Oil - Partial Days Sm3 =
+CALCULATE ( [Lost Oil Sm3], fact_downtime[full_day_stop] = FALSE () )
+
+Lost Hours = SUM ( fact_downtime[lost_hrs] )
+
+Lost vs Potential % = DIVIDE ( [Lost Oil Sm3], [Oil Sm3] + [Lost Oil Sm3] )
+
+// ---------- Daily report helpers ----------
+Selected Day Label =
+"Daily Production Report · " & FORMAT ( MAX ( dim_date[Date] ), "dd mmm yyyy" )
+
+Wells On Stream =
+CALCULATE (
+    DISTINCTCOUNT ( fact_production[well] ),
+    fact_production[on_stream_hrs] > 0
+)

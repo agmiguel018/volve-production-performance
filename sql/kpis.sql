@@ -1,6 +1,7 @@
 -- KPI queries for the Volve field (DuckDB).
 -- Source table `daily` = data/processed/volve_daily.parquet (built by notebooks/01_cleaning.ipynb).
 -- Each query starts with "-- name: <id>" so the notebook can run them by name.
+-- `daily_loss` must be registered as a view before running `downtime_loss`.
 
 -- name: well_totals
 -- Contribution of each producer: volumes, share of field oil and producing life.
@@ -62,8 +63,8 @@ FROM daily
 GROUP BY ALL
 ORDER BY year;
 
--- name: downtime_loss
--- Estimated oil lost to downtime, per producer and year.
+-- name: daily_loss
+-- Estimated oil lost to downtime, per producer and day (registered as view `daily_loss`).
 -- Reference rate = median oil rate (Sm3 per on-stream hour) of the well's full days
 -- (>= 23 h on stream) in the same month, carried forward when a month has no full day.
 -- Lost oil = hours not on stream × reference rate, inside the well's producing life only.
@@ -96,21 +97,24 @@ filled_ref AS (
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS ref_rate
     FROM monthly_ref
-),
-daily_loss AS (
-    SELECT
-        i.well,
-        YEAR(i.date)                                       AS year,
-        i.day_hours - i.on_stream_hrs                      AS lost_hrs,
-        (i.day_hours - i.on_stream_hrs) * f.ref_rate       AS lost_oil_sm3,
-        i.on_stream_hrs = 0                                AS full_day_stop,
-        i.oil_sm3
-    FROM in_life i
-    JOIN filled_ref f ON f.well = i.well AND f.month = DATE_TRUNC('month', i.date)
 )
 SELECT
+    i.date,
+    i.well,
+    f.ref_rate                                         AS ref_rate_sm3_per_hr,
+    i.day_hours - i.on_stream_hrs                      AS lost_hrs,
+    (i.day_hours - i.on_stream_hrs) * f.ref_rate       AS lost_oil_sm3,
+    i.on_stream_hrs = 0                                AS full_day_stop,
+    i.oil_sm3
+FROM in_life i
+JOIN filled_ref f ON f.well = i.well AND f.month = DATE_TRUNC('month', i.date)
+ORDER BY i.well, i.date;
+
+-- name: downtime_loss
+-- Estimated oil lost to downtime, per producer and year (aggregates the `daily_loss` view).
+SELECT
     well,
-    year,
+    YEAR(date)                                                 AS year,
     ROUND(SUM(oil_sm3))                                        AS produced_oil_sm3,
     ROUND(SUM(lost_oil_sm3))                                   AS lost_oil_sm3,
     ROUND(SUM(lost_oil_sm3) FILTER (WHERE full_day_stop))      AS lost_full_day_stops_sm3,
