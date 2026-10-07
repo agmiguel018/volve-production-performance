@@ -28,6 +28,7 @@ GOR Sm3/Sm3 = DIVIDE ( [Gas Sm3], [Oil Sm3] )
 
 Water-Oil Ratio = DIVIDE ( [Water Sm3], [Oil Sm3] )
 
+// choke_pct is already in percent (0-100): format as a decimal number, not as a percentage
 Avg Choke % =
 CALCULATE (
     AVERAGE ( fact_production[choke_pct] ),
